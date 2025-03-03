@@ -1,0 +1,102 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+#drop_zone {
+  width: 600px;
+  border-radius: 10px;
+  text-align: center;
+  margin-inline: auto;
+  border: 2px solid black;
+}
+
+#drop_zone.dragover {
+  border-color: #000;
+  color: #000;
+}
+
+#data_zone {
+  display: none;
+}
+
+#chartParent {
+  width: 1000px;
+  height: 500px;
+  margin-inline: auto;
+  border-radius: 10px;
+  padding: 10px;
+  display: none;
+}
+
+#chartHeaderArea {
+  margin-inline: auto;
+  text-align: center;
+  display: block;
+  
+}
+#chartHeaderFirstLine {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#chartHeader {
+  font-weight: bold;
+  font-size: 2em;
+  display: inline;
+}
+#chartHeaderSecondLine {
+  display: block;
+  margin-top: 10px;
+}
+#underChartInfoArea {
+  text-align: center;
+}
+#analysisZone {
+  display: none;
+  margin-inline: auto;
+  text-align: center;
+}
+#analysisLeftColumn {
+  display: inline-block;
+  margin-right: 20px;
+  width: 500px;
+}
+#analysisLeftColumn table, th, td {
+  text-align: center;
+  border-collapse: collapse;
+  border: 1px solid black;
+}
+#analysisLeftColumn th, td {
+  padding: 5px;
+  width: 86px;
+}
+#analysisRightColumn {
+  display: inline-block;
+  width: 700px;
+}
+#monthChartContainer {
+  width: 700px;
+  height: 400px;
+  margin-inline: auto;
+  border-radius: 10px;
+}
+#monthChart {
+  width: 700px;
+  height: 400px;
+}
+#monthChartHeader {
+  text-align: center;
+  width: 700px;
+}
+#aboveTableHeader {
+  width: 484px;
+}
+#aboveTableHeader h2 {
+  text-align: center;
+}
+.clickableCell {
+  color: blue;
+  text-decoration: underline;
+}
+
+

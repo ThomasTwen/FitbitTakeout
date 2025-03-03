@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sleep analysis</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="chart.js"></script>
+    <script src="jszip.js"></script>
+    <script type="text/javascript">
+        var bigFile = new Array();
+        analysisByDay = {};
+        var decompressTarget = 0;
+        var decompressProgress = 0;
+        var targetDay = "";
+        var monthData = {};
+        var monthsInSample = new Array();
+
+        function init() {
+            var dropZone = document.getElementById('drop_zone');
+            var fileInput = document.getElementById('file_input');
+    
+            dropZone.addEventListener('dragover', handleDragOver, false);
+            dropZone.addEventListener('drop', handleFileSelect, false);
+            dropZone.addEventListener('click', function() {
+              fileInput.click();
+            }, false);
+            fileInput.addEventListener('change', handleFileSelect, false);
+        }
+
+        function handleDragOver(event) {
+          event.stopPropagation();
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleFileSelect(event) {
+          event.stopPropagation();
+          event.preventDefault();
+          var files = event.dataTransfer ? event.dataTransfer.files : event.target.files;
+          var re = /(?:\.([^.]+))?$/;
+          if (re.exec(files[0]["name"])[1] != "zip") {
+            alert("Please select a zip file");
+            return;
+          }
+          // Call your JS function here with the files
+          document.getElementById('drop_zone').style.display = 'none';
+          document.getElementById('data_zone').style.display = 'block';
+          document.getElementById('analysisZone').style.display = 'block';
+
+          JSZip.loadAsync(files[0])
+            .then(function(zip) {zipList = zip.file(/Oxygen Saturation/);
+              decompressTarget = zipList.length;
+              for (var i = 0; i < zipList.length; i++) {
+                zipList[i].async('string').then(function (content) {
+                  bigFile.push(content.replace("\r\n", "<br>").replace(/(\r\n|\n|\r)/gm, "<br>").replace("timestamp,value<br>", ""));
+                  decompressProgress++;
+                  if (decompressProgress == decompressTarget) {
+                    analyzeData();
+                    updateChart();
+                  }
+                });
+              }
+            });
+        }
+
+        function updateChart() {
+          document.getElementById("underChartInfoArea").innerHTML = "Avg: " + analysisByDay[targetDay][0].toFixed(2) + "; Min: " + analysisByDay[targetDay][1] + "; Under 90%: " + analysisByDay[targetDay][2] + "; Under 80%: " + analysisByDay[targetDay][3] + "; Valid Datapoints: " + analysisByDay[targetDay][4];
+          document.getElementById("chartParent").innerHTML = "<canvas id=\"line-chart\"></canvas>";
+          document.getElementById("chartParent").style.display = "block";
+          var labelArray = new Array();
+          var dataArray = new Array();
+          //loop through the array and find the data for the requested day
+          var targetDayID = 0;
+          for (var i = 0; i < bigFile.length; i++) {
+            if (bigFile[i].substring(0, 10) == targetDay) {
+              var targetDayID = i;
+              break;
+            }
+          }
+          document.getElementById('chartHeader').innerHTML = bigFile[targetDayID].substring(0, 10);
+          var a = bigFile[targetDayID].split("<br>");
+          for (var i = 0; i < a.length; i++) {
+            var b = a[i].split(",");
+            if (b[0].substring(11, 13) < 12) {
+                labelArray.push(b[0].substring(11, 16));
+                dataArray.push((b[1] == "50.0") ? "NaN" : b[1]);
+            } else {
+              //once we encounter a value larger than 12, we dont add the 00:00 values form the next midnight either
+              break;
+            }
+          }
+          new Chart(document.getElementById("line-chart"), {
+		        type : 'line',
+		        data : {
+			      labels : labelArray,
+			      datasets : [
+					  {
+						  data : dataArray,
+						  label : "O2-Sättigung [%]",
+						  fill : false
+            }]
+            },
+            options : {
+              title : {
+                display : true,
+                text : 'Chart JS Line Chart Example'
+              },
+              scales: {
+                y: {
+                  min: 75
+                },
+                x: {
+                  ticks: {
+                    autoSkip: false, 
+                    callback: function(val, index) {
+                      if (this.getLabelForValue(val).substring(3, 5) == "00") {
+                        return this.getLabelForValue(val);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+
+        function dateButtonClick(buttonElement) {
+          targetDay = buttonElement.previousElementSibling.value;
+          updateChart();
+        }
+        function tableDateClick(newDate) {
+          targetDay = newDate;
+          updateChart();
+        }
+
+        function shiftDate(direction) {
+          const date = new Date(targetDay); // Convert to Date object
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date format");
+          }
+          // direction = 1 for increment, -1 for decrement
+          date.setDate(date.getDate() + direction);
+          // Convert back to YYYY-MM-DD format
+          targetDay = date.toISOString().split("T")[0];
+          updateChart();
+        }
+
+        function analyzeData() {
+          //analyze data for further display
+          //first task is to find the latest day in the sample
+          var daySearch = new Date().toISOString().split("T")[0];
+          while (true) {
+            for (var i = 0; i < bigFile.length; i++) {
+              if (bigFile[i].substring(0, 10) == daySearch) {
+                targetDay = daySearch;
+                break;
+              }
+            }
+            if (targetDay != "") {
+              break;
+            } else {
+              //we didnt find the current date in the sample, so we have to decrement
+              daySearch = new Date(daySearch);
+              daySearch.setDate(daySearch.getDate() - 1);
+              daySearch = daySearch.toISOString().split("T")[0];
+            }
+          }
+          //now we take all the base data and build a new array with derived info for each day
+          //iterate over over the bigFile array and build a new array with the following contents
+          // avg, min, under90s, under80s, validElements
+          for (var i = 0; i < bigFile.length; i++) {
+            var a = bigFile[i].split("<br>");
+            var sum = 0;
+            var min = 100;
+            var under90s = 0;
+            var under80s = 0;
+            var validElements = 0;
+            for (var j = 0; j < a.length; j++) {
+              var b = a[j].split(",");
+              if (b[1] != "50.0") {
+                if (b[0].substring(11, 13) < 12) {
+                  sum += parseFloat(b[1]);
+                  validElements++;
+                  if (parseFloat(b[1]) < min) {
+                    min = parseFloat(b[1]);
+                  }
+                  if (parseFloat(b[1]) < 90) {
+                    under90s++;
+                  }
+                  if (parseFloat(b[1]) < 80) {
+                    under80s++;
+                  }
+                } else {
+                  //once we encounter a value larger than 12, we dont add the 00:00 values form the next midnight either
+                  break;
+                }
+              }
+            }
+            analysisByDay[a[0].substring(0, 10)] = [sum / validElements, min, under90s, under80s, validElements];
+          }
+          //write this overview over the last 30 days into a table in the analysisLeftColumn div
+          myString = "<div id=\"aboveTableHeader\"><h2>Data from the last 30 Days</h2></div><table><tr><th>Date</th><th onclick=\"updateMonthChart(0)\" class=\"clickableCell\">Avg</th><th onclick=\"updateMonthChart(1)\" class=\"clickableCell\">Min</th><th onclick=\"updateMonthChart(2)\" class=\"clickableCell\">Under 90%</th><th onclick=\"updateMonthChart(3)\" class=\"clickableCell\">Under 80%</th></tr>";
+          //loop over the analysisByDay array and write the data into the table
+          for (var i = 0; i < 30; i++) {
+            var day = new Date(targetDay);
+            day.setDate(day.getDate() - i);
+            var dayString = day.toISOString().split("T")[0];
+            myString += "<tr><td class=\"clickableCell\"onclick=\"tableDateClick('" + dayString + "')\">" + dayString + "</td><td>" + analysisByDay[dayString][0].toFixed(2) + "</td><td>" + analysisByDay[dayString][1] + "</td><td>" + analysisByDay[dayString][2] + "</td><td>" + analysisByDay[dayString][3] + "</td></tr>";
+          }
+          myString += "</table>";
+          document.getElementById("analysisLeftColumn").innerHTML = myString;
+          //consolidate daily data into monthly data
+          for (var i = 0; i < bigFile.length; i++) {
+            var day = new Date(targetDay);
+            day.setDate(day.getDate() - i);
+            var dayString = day.toISOString().split("T")[0];
+            var monthString = dayString.substring(0, 7);
+            if (monthData[monthString] == undefined) {
+              //we found a month that hasnt been done yet
+              //loop over all days of this month
+              monthsInSample.push(monthString);
+              var validDays = 0;
+              var sumAvg = 0;
+              var sumU90 = 0;
+              var sumU80 = 0;
+              var sumMin = 0;
+              for (var j = 1; j < 32; j++) {
+                var dayString = monthString + "-" + (j < 10 ? "0" + j : j);
+                if (analysisByDay[dayString] != undefined) {
+                  if (analysisByDay[dayString][4] > 50) {
+                    validDays++;
+                    sumAvg += analysisByDay[dayString][0];
+                    sumMin += analysisByDay[dayString][1];
+                    sumU90 += analysisByDay[dayString][2];
+                    sumU80 += analysisByDay[dayString][3];
+                  }
+                }
+              }
+              //data is: avg avg, avg min, avg u90, avg u80, validDays
+              monthData[monthString] = [sumAvg / validDays, sumMin / validDays, sumU90 / validDays, sumU80 / validDays, validDays];
+            }
+          }
+          //now we order the monthsinSample Array
+          monthsInSample = sortMonths(monthsInSample);
+          //now we create a chart for the monthly data
+          updateMonthChart(0);
+        }
+
+        function sortMonths(months) {
+          return months.sort((a, b) => a.localeCompare(b));
+        }
+
+        function updateMonthChart(dataIndex) {
+          document.getElementById("monthChartHeader").innerHTML = "<h2>Historical data</h2>";
+          document.getElementById("monthChartContainer").innerHTML = "<canvas id=\"monthChart\"></canvas>";
+          var monthDataArray = new Array();
+          var monthDataLabels = new Array();
+          for (var i = 0; i < monthsInSample.length; i++) {
+            monthDataArray.push(monthData[monthsInSample[i]][dataIndex].toFixed(2));
+            monthDataLabels.push(monthsInSample[i]);
+          }
+          new Chart(document.getElementById("monthChart"), {
+            type : 'line',
+            data : {
+              labels : monthDataLabels,
+              datasets : [
+                {
+                  data : monthDataArray,
+                  label : "TODO",
+                  fill : false
+                }]
+            }
+          });
+        }
+      </script>
+  </head>
+  <body onload="init()">
+    <div id="drop_zone">
+    <h1>Upload your Google Takeout Export</h1>
+      Drag and drop a zip file here or select one by clicking here<br>
+      <br><br>
+      <input type="file" id="file_input"/><br><br>
+    </div>
+    
+    
+    <div id="data_zone">
+      <div id ="chartHeaderArea"><div id="chartHeaderFirstLine"><button id="prevButton" onclick="shiftDate(-1)">Prev</button>&nbsp;<div id="chartHeader"></div>&nbsp;<button id="nextButton" onclick="shiftDate(1)">Next</button></div>
+      <div id="chartHeaderSecondLine">Enter a date in the format 2024-12-31: <input type="text"/><button onclick="dateButtonClick(this)">Show</button></div></div>
+      <div id="chartParent"></div>
+      <div id="underChartInfoArea"></div>
+    </div>
+    <div id="analysisZone"><div id="analysisLeftColumn"></div><div id="analysisRightColumn"><div id="monthChartHeader"></div><div id="monthChartContainer"></div></div></div>
+  </body>
+</html>
