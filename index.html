@@ -258,6 +258,16 @@
             monthDataArray.push(monthData[monthsInSample[i]][dataIndex].toFixed(2));
             monthDataLabels.push(monthsInSample[i]);
           }
+          var labelString = "You should never see this";
+          if (dataIndex == 0) {
+            labelString = "Average Average O2-Saturation [%]";
+          } else if (dataIndex == 1) {
+            labelString = "Average Minimum O2-Saturation [%]";
+          } else if (dataIndex == 2) {
+            labelString = "Average Measurements of O2-Saturation < 90%";
+          } else if (dataIndex == 3) {
+            labelString = "Average Measurements of O2-Saturation < 80%";
+          }
           new Chart(document.getElementById("monthChart"), {
             type : 'line',
             data : {
@@ -265,7 +275,7 @@
               datasets : [
                 {
                   data : monthDataArray,
-                  label : "TODO",
+                  label : labelString,
                   fill : false
                 }]
             }
