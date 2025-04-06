@@ -139,6 +139,14 @@
           }
           // direction = 1 for increment, -1 for decrement
           date.setDate(date.getDate() + direction);
+          // DST may have prevented a day change
+          if (date.toISOString().split("T")[0] == targetDay) {
+            date.setDate(date.getDate() + direction);
+          }
+          // If the month changes unexpectedly, correct it
+          if (date.getMonth() !== (date.getMonth() + direction >= 0 ? date.getMonth() : (date.getMonth() - 1))) {
+            date.setMonth(date.getMonth() + direction);
+          }
           // Convert back to YYYY-MM-DD format
           targetDay = date.toISOString().split("T")[0];
           updateChart();
