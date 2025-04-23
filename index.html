@@ -13,6 +13,8 @@
         var targetDay = "";
         var monthData = {};
         var monthsInSample = new Array();
+        var labelString = "";
+        var dataIndex = 0;
 
         function init() {
             var dropZone = document.getElementById('drop_zone');
@@ -121,6 +123,7 @@
               }
             }
           });
+          updateDay30Chart();
         }
 
         function dateButtonClick(buttonElement) {
@@ -257,24 +260,24 @@
           return months.sort((a, b) => a.localeCompare(b));
         }
 
-        function updateMonthChart(dataIndex) {
-          document.getElementById("monthChartHeader").innerHTML = "<h2>Historical data</h2>";
+        function updateMonthChart(newDataIndex) {
+          dataIndex = newDataIndex;
           document.getElementById("monthChartContainer").innerHTML = "<canvas id=\"monthChart\"></canvas>";
-          var monthDataArray = new Array();
           var monthDataLabels = new Array();
+          var monthDataArray = new Array();
           for (var i = 0; i < monthsInSample.length; i++) {
             monthDataArray.push(monthData[monthsInSample[i]][dataIndex].toFixed(2));
             monthDataLabels.push(monthsInSample[i]);
           }
-          var labelString = "You should never see this";
+          labelString = "You should never see this";
           if (dataIndex == 0) {
-            labelString = "Monthly Average of Average O2-Saturation [%]";
+            labelString = "Average of Average O2-Saturation [%]";
           } else if (dataIndex == 1) {
-            labelString = "Monthly Average of Minimum O2-Saturation [%]";
+            labelString = "Average of Minimum O2-Saturation [%]";
           } else if (dataIndex == 2) {
-            labelString = "Monthly Average of Measurements of O2-Saturation < 90%";
+            labelString = "Average of Measurements of O2-Saturation < 90%";
           } else if (dataIndex == 3) {
-            labelString = "Monthly Average of Measurements of O2-Saturation < 80%";
+            labelString = "Average of Measurements of O2-Saturation < 80%";
           }
           new Chart(document.getElementById("monthChart"), {
             type : 'line',
@@ -288,6 +291,47 @@
                 }]
             }
           });
+          updateDay30Chart();
+        }
+        function updateDay30Chart() {
+          document.getElementById("day30ChartContainer").innerHTML = "<canvas id=\"day30Chart\"></canvas>";
+          var day30DataArray = [];
+            var day30Labels = [];
+            for (var i = 0; i < 31; i++) {
+              var day = new Date(targetDay);
+              day.setDate(day.getDate() - i);
+              var dayString = day.toISOString().split("T")[0];
+              if (analysisByDay[dayString] && analysisByDay[dayString][4] > 0) {
+                day30Labels.unshift(dayString);
+                day30DataArray.unshift(analysisByDay[dayString][dataIndex].toFixed(2));
+              }
+            }
+
+            new Chart(document.getElementById("day30Chart"), {
+            type: 'line',
+            data: {
+              labels: day30Labels,
+              datasets: [
+              {
+                data: day30DataArray,
+                label: labelString,
+                fill: false
+              }]},
+              options: {
+                scales: {
+                  x: {
+                    ticks: {
+                       autoSkip: false, 
+                       callback: function(val, index) {
+                         if (index%2 == 0) {
+                           return this.getLabelForValue(val);
+                         }
+                      }
+                    }
+                }
+              }
+            }
+            });
         }
       </script>
   </head>
@@ -306,6 +350,7 @@
       <div id="chartParent"></div>
       <div id="underChartInfoArea"></div>
     </div>
-    <div id="analysisZone"><div id="analysisLeftColumn"></div><div id="analysisRightColumn"><div id="monthChartHeader"></div><div id="monthChartContainer"></div></div></div>
+    <div id="analysisZone"><div id="analysisLeftColumn"></div><div id="analysisRightColumn"><div id="day30ChartHeader"><h2>Last 31 Days</h2></div><div id="day30ChartContainer"></div>
+    <div id="monthChartHeader"><h2>Historical data</h2></div><div id="monthChartContainer"></div></div></div>
   </body>
 </html>

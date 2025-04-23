@@ -60,6 +60,7 @@ body {
   display: inline-block;
   margin-right: 20px;
   width: 500px;
+  vertical-align: top;
 }
 #analysisLeftColumn table, th, td {
   text-align: center;
@@ -73,6 +74,7 @@ body {
 #analysisRightColumn {
   display: inline-block;
   width: 700px;
+  vertical-align: top;
 }
 #monthChartContainer {
   width: 700px;
